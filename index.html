@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ÇATI - Bir Korku Oyunu</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+  canvas { display: block; }
+
+  /* ===== INTRO SCREEN ===== */
+  #intro-screen {
+    position: fixed; inset: 0; background: #050505;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 200; cursor: default;
+  }
+  .intro-logo {
+    font-size: clamp(48px, 8vw, 90px); color: #b00000; letter-spacing: 20px;
+    font-family: 'Georgia', serif; text-transform: uppercase;
+    text-shadow: 0 0 40px #b0000088, 0 0 80px #b0000044;
+    animation: titleFlicker 4s infinite;
+  }
+  @keyframes titleFlicker {
+    0%,90%,100%{opacity:1;text-shadow:0 0 40px #b0000088,0 0 80px #b0000044}
+    91%{opacity:0.2;text-shadow:none}
+    92%{opacity:1;text-shadow:0 0 40px #b0000088}
+    95%{opacity:0.4;text-shadow:none}
+    96%{opacity:1;text-shadow:0 0 40px #b0000088,0 0 80px #b0000044}
+  }
+  .intro-sub {
+    color: #333; font-size: 11px; letter-spacing: 6px; margin-top: 12px;
+    text-transform: uppercase;
+  }
+  .intro-warning {
+    color: #555; font-size: 13px; margin-top: 50px; text-align: center;
+    max-width: 440px; line-height: 2; letter-spacing: 1px;
+    border: 1px solid #1a1a1a; padding: 20px 30px;
+  }
+  .intro-warning span { color: #cc3300; }
+  .intro-btn {
+    margin-top: 40px; background: transparent; border: 2px solid #b00000;
+    color: #b00000; padding: 14px 60px; font-family: 'Courier New', monospace;
+    font-size: 14px; letter-spacing: 6px; cursor: pointer;
+    transition: all 0.3s; text-transform: uppercase;
+  }
+  .intro-btn:hover {
+    background: #b00000; color: #fff;
+    box-shadow: 0 0 40px #b0000066, inset 0 0 20px #ff000022;
+  }
+  .static-overlay {
+    position: fixed; inset: 0; pointer-events: none; opacity: 0.03; z-index: 999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ===== CMD SCREEN ===== */
+  #cmd-screen {
+    position: fixed; inset: 0; background: #000;
+    display: none; z-index: 150; padding: 40px;
+    flex-direction: column; justify-content: flex-start;
+  }
+  #cmd-header {
+    color: #00ff00; font-size: 13px; border-bottom: 1px solid #003300;
+    padding-bottom: 10px; margin-bottom: 20px; letter-spacing: 2px;
+  }
+  #cmd-output {
+    color: #00cc00; font-size: 13px; line-height: 1.9;
+    white-space: pre-wrap; flex: 1;
+  }
+  #cmd-cursor { display: inline-block; width: 9px; height: 15px; background: #00ff00; animation: blink 1s step-end infinite; vertical-align: middle; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  #cmd-start-btn {
+    display: none; background: transparent; border: 1px solid #00ff00;
+    color: #00ff00; padding: 10px 28px; font-family: 'Courier New', monospace;
+    font-size: 13px; cursor: pointer; margin-top: 24px; letter-spacing: 3px;
+    align-self: flex-start; transition: all 0.3s;
+  }
+  #cmd-start-btn:hover { background: #00ff0011; box-shadow: 0 0 20px #00ff0033; }
+
+  /* ===== GAME CANVAS ===== */
+  #game-canvas { position: fixed; inset: 0; display: none; }
+
+  /* ===== HUD / INSTRUCTIONS ===== */
+  #hud {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    color: #ffffff44; font-size: 11px; letter-spacing: 3px; text-align: center;
+    pointer-events: none; display: none; z-index: 50;
+  }
+  #disc-info {
+    position: fixed; top: 20px; right: 20px;
+    color: #ffffff66; font-size: 11px; letter-spacing: 2px;
+    text-align: right; pointer-events: none; display: none; z-index: 50;
+    line-height: 1.8;
+  }
+
+  /* ===== VIDEO OVERLAY - removed, video plays on TV screen ===== */
+
+  /* ===== DISC INSERT ANIMATION ===== */
+  #disc-insert-anim {
+    position: fixed; inset: 0; pointer-events: none; z-index: 95;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+  }
+  .disc-svg { width: 120px; height: 120px; }
+
+  /* ===== DEATH SCREEN ===== */
+  #death-screen {
+    position: fixed; inset: 0; background: #000;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 300;
+  }
+  .death-text {
+    color: #cc0000; font-size: clamp(36px, 7vw, 80px); font-family: 'Georgia', serif;
+    letter-spacing: 10px; text-transform: uppercase;
+    text-shadow: 0 0 30px #cc000066;
+    animation: deathPulse 2s ease-in-out infinite;
+  }
+  @keyframes deathPulse {
+    0%,100%{text-shadow:0 0 30px #cc000066} 50%{text-shadow:0 0 80px #cc0000cc,0 0 120px #cc000044}
+  }
+  .death-sub { color: #333; font-size: 13px; letter-spacing: 5px; margin-top: 20px; }
+  .death-restart {
+    margin-top: 60px; background: transparent; border: 1px solid #333;
+    color: #555; padding: 10px 30px; font-family: 'Courier New', monospace;
+    font-size: 12px; cursor: pointer; letter-spacing: 3px; transition: all 0.3s;
+  }
+  .death-restart:hover { border-color: #cc0000; color: #cc0000; }
+
+  /* ===== LIGHTNING ===== */
+  #lightning-flash { position: fixed; inset: 0; background: transparent; pointer-events: none; z-index: 49; }
+
+  /* ===== MONSTER JUMP ===== */
+  #monster-screen {
+    position: fixed; inset: 0; background: #000;
+    display: none; align-items: center; justify-content: center; z-index: 250;
+    overflow: hidden;
+  }
+  #monster-img {
+    position: absolute; width: 100%; height: 100%; object-fit: cover;
+    filter: contrast(1.5) saturate(0.3) brightness(0.6);
+    animation: monsterShake 0.08s infinite;
+  }
+  @keyframes monsterShake {
+    0%,100%{transform:translate(0,0) scale(1)}
+    25%{transform:translate(-6px,3px) scale(1.02)}
+    50%{transform:translate(6px,-3px) scale(0.99)}
+    75%{transform:translate(-3px,6px) scale(1.01)}
+  }
+  #monster-scream-text {
+    position: absolute; color: #cc0000; font-size: clamp(40px,10vw,120px);
+    font-family: 'Georgia', serif; letter-spacing: 8px;
+    text-shadow: 0 0 40px #cc0000; z-index: 10; opacity: 0;
+    animation: screamReveal 0.5s 0.3s forwards;
+  }
+  @keyframes screamReveal { to{opacity:1} }
+</style>
+</head>
+<body>
+
+<!-- Static noise -->
+<div class="static-overlay"></div>
+
+<!-- ===== INTRO ===== -->
+<div id="intro-screen">
+  <div class="intro-logo">ÇATI</div>
+  <div class="intro-sub">bir korku deneyimi</div>
+  <div class="intro-warning">
+    Bu oyun <span>şiddetli ses efektleri</span> ve <span>ani korkutma sahneleri</span> içermektedir.<br>
+    Kulaklık takmanız önerilir.<br>
+    Devam ederek bu uyarıyı kabul etmiş olursunuz.
+  </div>
+  <button class="intro-btn" onclick="showCmd()">BAŞLA</button>
+</div>
+
+<!-- ===== CMD SCREEN ===== -->
+<div id="cmd-screen" style="display:none;flex-direction:column;">
+  <div id="cmd-header">C:\SYSTEM\INCIDENT_LOG.exe</div>
+  <div id="cmd-output"><span id="cmd-cursor"></span></div>
+  <button id="cmd-start-btn" onclick="startGame()">[ OYUNA GİR ]</button>
+</div>
+
+<!-- ===== GAME CANVAS ===== -->
+<canvas id="game-canvas"></canvas>
+
+<!-- Lightning flash overlay -->
+<div id="lightning-flash"></div>
+
+<!-- ===== HUD ===== -->
+<div id="hud">FARE: BAKIN &nbsp;|&nbsp; DISK: TIKLA</div>
+<div id="disc-info" id="disc-info">
+  <div id="disc1-status">● DİSK 1</div>
+  <div id="disc2-status">● DİSK 2</div>
+  <div id="disc3-status">● DİSK 3</div>
+</div>
+
+<!-- ===== DISC INSERT ANIMATION ===== -->
+<div id="disc-insert-anim">
+  <svg class="disc-svg" viewBox="0 0 120 120">
+    <circle cx="60" cy="60" r="50" fill="#111" stroke="#444" stroke-width="3"/>
+    <circle cx="60" cy="60" r="18" fill="#222" stroke="#555" stroke-width="2"/>
+    <circle cx="60" cy="60" r="5" fill="#333"/>
+    <ellipse cx="60" cy="60" rx="50" ry="50" fill="none" stroke="url(#dg)" stroke-width="2" opacity="0.6"/>
+    <defs>
+      <linearGradient id="dg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#4488ff"/>
+        <stop offset="50%" stop-color="#ff44aa"/>
+        <stop offset="100%" stop-color="#44ff88"/>
+      </linearGradient>
+    </defs>
+  </svg>
+</div>
+
+<!-- Hidden video element - plays on TV screen texture -->
+<video id="game-video" style="display:none;" playsinline crossorigin="anonymous">
+  <source src="" type="video/mp4">
+</video>
+
+<!-- ===== MONSTER SCREEN ===== -->
+<div id="monster-screen">
+  <!-- Canavar için koyu kırmızı gradient arka plan - gerçek resim olmadığında -->
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center, #1a0000 0%, #000 70%);"></div>
+  <!-- Eğer canavar görselin varsa img etiketi ile ekle: -->
+  <!-- <img id="monster-img" src="canavar.jpg"> -->
+  <div id="monster-scream-text">SEN ÖLDÜN</div>
+</div>
+
+<!-- ===== DEATH SCREEN ===== -->
+<div id="death-screen">
+  <div class="death-text">ÖLDÜN</div>
+  <div class="death-sub">geri dönüş yok</div>
+  <button class="death-restart" onclick="location.reload()">YENİDEN BAŞLA</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+
+// ============================================================
+//  ★ VİDEO URL'LERİNİ BURAYA EKLE ★
+// ============================================================
+const DISC_VIDEOS = [
+  "video1.mp4",   // Disk 1 - sıradan film
+  "video2.mp4",   // Disk 2
+  "video3.mp4",   // Disk 3
+];
+
+// CMD ekranında çıkacak yazı (isteğe göre düzenle)
+const CMD_TEXT = `> Incident Report: ABANDONED BUILDING - TIME 02:47
+> Location: [DELETED] - 8. STOREY ROOF
+> Date: [DELETED]
+> Country/Province: Germany, Munich
+
+> This area has been sealed because of security violations.
+> Son bilinen sakin 14 gün önce ortadan kayboldu.
+> This place dates as far back as the 1940s
+> Some 15-year-old German people were confined in this place and tortured allegedly.
+
+> Komşu tanıklıkları:
+  - "Geceleri yukarıdan sesler duyuyorduk..."
+  - "Televizyonu her gece açıktı."
+  - "Ama kimse yoktu."
+
+> İnceleme ekibi bulguları:
+  - 3 adet optik disk (içerik bilinmiyor)
+  - Çalışır durumdaki CRT televizyon
+  - Pencerelerde cam kırıkları - DIŞARIDAN
+
+> UYARI: Bu alana izinsiz giriş yasaktır.
+> UYARI: Bölgede bilinmeyen tehdit saptandı.
+> UYARI: DİKKATLİ OLUN.
+> WARNING: Some people will come your home virtually
+
+> Sistem bağlantısı kesiliyor...
+`;
+
+// ============================================================
+//  CMD SCREEN
+// ============================================================
+function showCmd() {
+  document.getElementById('intro-screen').style.display = 'none';
+  const cmdScreen = document.getElementById('cmd-screen');
+  cmdScreen.style.display = 'flex';
+
+  let i = 0;
+  const output = document.getElementById('cmd-output');
+  const cursor = document.getElementById('cmd-cursor');
+
+  function typeChar() {
+    if (i < CMD_TEXT.length) {
+      output.insertBefore(document.createTextNode(CMD_TEXT[i]), cursor);
+      i++;
+      setTimeout(typeChar, CMD_TEXT[i-1] === '\n' ? 60 : 22);
+    } else {
+      cursor.style.display = 'none';
+      const btn = document.getElementById('cmd-start-btn');
+      btn.style.display = 'block';
+    }
+  }
+  setTimeout(typeChar, 600);
+}
+
+// ============================================================
+//  THREE.JS GAME
+// ============================================================
+let scene, camera, renderer, raycaster, mouse;
+let discObjects = [];
+let discsWatched = [false, false, false];
+let isDead = false;
+let monsterTriggered = false;
+let rainParticles;
+let clock;
+let cameraAngle = 0;
+let isDragging = false, lastMouseX = 0;
+const MAX_ANGLE = Math.PI / 2.2;
+
+function startGame() {
+  document.getElementById('cmd-screen').style.display = 'none';
+  document.getElementById('game-canvas').style.display = 'block';
+  document.getElementById('hud').style.display = 'block';
+  document.getElementById('disc-info').style.display = 'block';
+
+  initThree();
+  animate();
+  initRain();
+  initLightning();
+  initControls();
+}
+
+function initThree() {
+  clock = new THREE.Clock();
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x020205);
+  scene.fog = new THREE.FogExp2(0x050510, 0.06);
+
+  camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 200);
+  camera.position.set(0, 1.55, -3.2);
+  camera.lookAt(0, 1.55, -6);
+
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ReinhardToneMapping;
+  renderer.toneMappingExposure = 0.6;
+
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  buildScene();
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function buildScene() {
+  // ---- AMBIENT & LIGHTS ----
+  const ambient = new THREE.AmbientLight(0x080815, 0.8);
+  scene.add(ambient);
+
+  // TV glow light
+  const tvLight = new THREE.PointLight(0x334466, 2, 8);
+  tvLight.position.set(0, 1.5, -6);
+  scene.add(tvLight);
+
+  // Distant city glow
+  const cityGlow = new THREE.PointLight(0x112233, 1.5, 40);
+  cityGlow.position.set(0, -2, -20);
+  scene.add(cityGlow);
+
+  // ---- FLOOR (çatı) ----
+  const floorGeo = new THREE.PlaneGeometry(30, 30, 20, 20);
+  const floorMat = new THREE.MeshLambertMaterial({ color: 0x111118 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI/2;
+  floor.position.y = 0;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Floor tiles grid
+  const gridHelper = new THREE.GridHelper(30, 15, 0x1a1a28, 0x151520);
+  gridHelper.position.y = 0.01;
+  scene.add(gridHelper);
+
+  // ---- ROOFTOP WALLS / LEDGES ----
+  buildLedges();
+
+  // ---- BACKGROUND (dark sky + distant buildings) ----
+  buildSkyAndCity();
+
+  // ---- TV TABLE ----
+  const tableGeo = new THREE.BoxGeometry(3.5, 0.08, 1.2);
+  const tableMat = new THREE.MeshLambertMaterial({ color: 0x1a100a });
+  const table = new THREE.Mesh(tableGeo, tableMat);
+  table.position.set(0, 0.8, -6);
+  table.receiveShadow = true;
+  table.castShadow = true;
+  scene.add(table);
+
+  // Table legs
+  [[-1.5,0.4],[-1.5,-0.4],[1.5,0.4],[1.5,-0.4]].forEach(([x,z]) => {
+    const legGeo = new THREE.BoxGeometry(0.08, 0.8, 0.08);
+    const leg = new THREE.Mesh(legGeo, tableMat);
+    leg.position.set(x, 0.4, -6 + z);
+    scene.add(leg);
+  });
+
+  // ---- CRT TV ----
+  buildCRTTV();
+
+  // ---- DVD PLAYER ----
+  buildDVDPlayer();
+
+  // ---- DISCS ----
+  buildDiscs();
+
+  // ---- DECORATIONS ----
+  buildDecorations();
+}
+
+function buildLedges() {
+  const ledgeMat = new THREE.MeshLambertMaterial({ color: 0x18181e });
+  const positions = [
+    [0, 0.3, -14, 28, 0.6, 0.4],
+    [0, 0.3,  14, 28, 0.6, 0.4],
+    [-14, 0.3, 0, 0.4, 0.6, 28],
+    [ 14, 0.3, 0, 0.4, 0.6, 28],
+  ];
+  positions.forEach(([x,y,z,w,h,d]) => {
+    const geo = new THREE.BoxGeometry(w,h,d);
+    const m = new THREE.Mesh(geo, ledgeMat);
+    m.position.set(x,y,z);
+    scene.add(m);
+  });
+}
+
+function buildSkyAndCity() {
+  // Dark sky gradient via large sphere
+  const skyGeo = new THREE.SphereGeometry(90, 16, 16);
+  const skyMat = new THREE.MeshBasicMaterial({ color: 0x02020a, side: THREE.BackSide });
+  scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+  // City buildings silhouette
+  const buildingMat = new THREE.MeshLambertMaterial({ color: 0x080810 });
+  for (let i = -15; i <= 15; i += 2.5) {
+    const h = 4 + Math.random() * 10;
+    const w = 1 + Math.random() * 2;
+    const geo = new THREE.BoxGeometry(w, h, 0.5);
+    const b = new THREE.Mesh(geo, buildingMat);
+    b.position.set(i + (Math.random()-0.5)*1.5, -2 + h/2, -16 - Math.random()*8);
+    scene.add(b);
+
+    // Some windows (random yellow dots)
+    if (Math.random() > 0.5) {
+      for (let wi = 0; wi < Math.floor(Math.random()*4+1); wi++) {
+        const winGeo = new THREE.BoxGeometry(0.15, 0.1, 0.1);
+        const winMat = new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0x443300 : 0x001122 });
+        const win = new THREE.Mesh(winGeo, winMat);
+        win.position.set(
+          b.position.x + (Math.random()-0.5)*w*0.6,
+          b.position.y - h/2 + Math.random()*h,
+          b.position.z + 0.35
+        );
+        scene.add(win);
+      }
+    }
+  }
+}
+
+function buildCRTTV() {
+  const tvGroup = new THREE.Group();
+  tvGroup.position.set(0, 0.84 + 0.55, -6);
+
+  // TV body
+  const bodyGeo = new THREE.BoxGeometry(1.4, 1.1, 0.7);
+  const bodyMat = new THREE.MeshLambertMaterial({ color: 0x1a1208 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  tvGroup.add(body);
+
+  // Rounded sides
+  const sideMat = new THREE.MeshLambertMaterial({ color: 0x221908 });
+  [-0.68, 0.68].forEach(x => {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.08, 0.68), sideMat);
+    s.position.x = x; tvGroup.add(s);
+  });
+
+  // Screen bezel
+  const bezelGeo = new THREE.BoxGeometry(1.2, 0.92, 0.05);
+  const bezelMat = new THREE.MeshLambertMaterial({ color: 0x0e0c06 });
+  const bezel = new THREE.Mesh(bezelGeo, bezelMat);
+  bezel.position.set(0, 0, 0.36);
+  tvGroup.add(bezel);
+
+  // Screen - starts as dark idle, switches to VideoTexture when playing
+  const screenGeo = new THREE.BoxGeometry(1.1, 0.82, 0.02);
+  const screenMat = new THREE.MeshBasicMaterial({ color: 0x050a15 });
+  const screen = new THREE.Mesh(screenGeo, screenMat);
+  screen.position.set(0, 0, 0.395);
+  screen.name = 'tvscreen';
+  tvGroup.add(screen);
+
+  // Scanlines overlay on top of screen
+  const slGeo = new THREE.PlaneGeometry(1.1, 0.82);
+  const canvas2d = document.createElement('canvas');
+  canvas2d.width = 4; canvas2d.height = 8;
+  const ctx2d = canvas2d.getContext('2d');
+  ctx2d.fillStyle = 'rgba(0,0,0,0)';
+  ctx2d.fillRect(0,0,4,8);
+  ctx2d.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx2d.fillRect(0,4,4,4);
+  const scanTex = new THREE.CanvasTexture(canvas2d);
+  scanTex.wrapS = scanTex.wrapT = THREE.RepeatWrapping;
+  scanTex.repeat.set(1, 80);
+  const slMat = new THREE.MeshBasicMaterial({ map: scanTex, transparent: true, depthWrite: false });
+  const sl = new THREE.Mesh(slGeo, slMat);
+  sl.position.set(0, 0, 0.41);
+  tvGroup.add(sl);
+
+  // Knobs
+  const knobGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.06, 8);
+  const knobMat = new THREE.MeshLambertMaterial({ color: 0x3a3020 });
+  [0.15, -0.15].forEach(y => {
+    const k = new THREE.Mesh(knobGeo, knobMat);
+    k.rotation.z = Math.PI/2;
+    k.position.set(0.58, y, 0.1);
+    tvGroup.add(k);
+  });
+
+  // Stand
+  const standGeo = new THREE.BoxGeometry(0.6, 0.1, 0.4);
+  const stand = new THREE.Mesh(standGeo, new THREE.MeshLambertMaterial({ color: 0x221908 }));
+  stand.position.set(0, -0.6, 0.1);
+  tvGroup.add(stand);
+
+  scene.add(tvGroup);
+  scene.userData.tvGroup = tvGroup;
+  scene.userData.screenMesh = screen;
+  scene.userData.screenMat = screenMat;
+}
+
+function buildDVDPlayer() {
+  const playerGeo = new THREE.BoxGeometry(1.2, 0.2, 0.6);
+  const playerMat = new THREE.MeshLambertMaterial({ color: 0x111110 });
+  const player = new THREE.Mesh(playerGeo, playerMat);
+  player.position.set(0, 0.84 + 0.1, -6.5);
+  player.castShadow = true;
+  scene.add(player);
+
+  // Slot
+  const slotGeo = new THREE.BoxGeometry(0.6, 0.02, 0.02);
+  const slotMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+  const slot = new THREE.Mesh(slotGeo, slotMat);
+  slot.position.set(0, 0.84 + 0.2, -6.5);
+  scene.add(slot);
+
+  // LED
+  const ledGeo = new THREE.SphereGeometry(0.025, 8, 8);
+  const ledMat = new THREE.MeshBasicMaterial({ color: 0x003300 });
+  const led = new THREE.Mesh(ledGeo, ledMat);
+  led.position.set(0.5, 0.84 + 0.2, -6.5);
+  led.name = 'dvd-led';
+  scene.add(led);
+  scene.userData.dvdLed = led;
+  scene.userData.dvdLedMat = ledMat;
+}
+
+function buildDiscs() {
+  // Disc stand/holder on table (separate small shelf to the right)
+  const holderGeo = new THREE.BoxGeometry(0.8, 0.05, 0.6);
+  const holderMat = new THREE.MeshLambertMaterial({ color: 0x100c08 });
+  const holder = new THREE.Mesh(holderGeo, holderMat);
+  holder.position.set(1.2, 0.85, -6.2);
+  scene.add(holder);
+
+  const colors = [0x223344, 0x332211, 0x223322];
+  const names = ['DİSK 1', 'DİSK 2', 'DİSK 3'];
+
+  for (let i = 0; i < 3; i++) {
+    const group = new THREE.Group();
+
+    // Disc body
+    const discGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.008, 32);
+    const discMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    const disc = new THREE.Mesh(discGeo, discMat);
+    group.add(disc);
+
+    // Rainbow sheen on top
+    const sheenGeo = new THREE.CylinderGeometry(0.175, 0.175, 0.002, 32);
+    const sheenMat = new THREE.MeshBasicMaterial({ color: colors[i], transparent: true, opacity: 0.7 });
+    const sheen = new THREE.Mesh(sheenGeo, sheenMat);
+    sheen.position.y = 0.005;
+    group.add(sheen);
+
+    // Hole
+    const holeGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.01, 16);
+    const holeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+    const hole = new THREE.Mesh(holeGeo, holeMat);
+    hole.position.y = 0.006;
+    group.add(hole);
+
+    // Label
+    const labelGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.009, 32);
+    const labelMat = new THREE.MeshLambertMaterial({ color: colors[i] });
+    const label = new THREE.Mesh(labelGeo, labelMat);
+    label.position.y = 0.004;
+    group.add(label);
+
+    group.position.set(1.0 + i * 0.22, 0.89, -6.2);
+    group.rotation.z = Math.PI/2 + 0.15;
+    group.rotation.x = 0.1;
+    group.userData.discIndex = i;
+    group.userData.discName = names[i];
+    group.name = 'disc_' + i;
+    group.userData.isDisc = true;
+
+    scene.add(group);
+    discObjects.push(group);
+  }
+}
+
+function buildDecorations() {
+  // Old chair / stool
+  const chairMat = new THREE.MeshLambertMaterial({ color: 0x1a1008 });
+
+  // Seat
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.5), chairMat);
+  seat.position.set(0, 0.55, -2.5);
+  scene.add(seat);
+
+  // Legs
+  [[-0.2,-0.2],[0.2,-0.2],[-0.2,0.2],[0.2,0.2]].forEach(([x,z]) => {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05,0.55,0.05), chairMat);
+    leg.position.set(x, 0.27, -2.5+z);
+    scene.add(leg);
+  });
+
+  // Water tower silhouette far back
+  const towerMat = new THREE.MeshLambertMaterial({ color: 0x090910 });
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,2,8), towerMat);
+  base.position.set(8, 1, -13);
+  scene.add(base);
+
+  // Pipes
+  const pipeMat = new THREE.MeshLambertMaterial({ color: 0x111118 });
+  for (let a = 0; a < Math.PI*2; a += Math.PI/3) {
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,2,6), pipeMat);
+    pipe.position.set(8+Math.cos(a)*0.7, 0.5, -13+Math.sin(a)*0.7);
+    scene.add(pipe);
+  }
+
+  // Scattered debris
+  const debrisMat = new THREE.MeshLambertMaterial({ color: 0x151518 });
+  for (let i = 0; i < 8; i++) {
+    const geo = new THREE.BoxGeometry(
+      0.1+Math.random()*0.3,
+      0.05+Math.random()*0.1,
+      0.1+Math.random()*0.3
+    );
+    const d = new THREE.Mesh(geo, debrisMat);
+    const angle = Math.random()*Math.PI*2;
+    const dist = 2+Math.random()*8;
+    d.position.set(Math.cos(angle)*dist, 0.04, -6 + Math.sin(angle)*dist);
+    d.rotation.y = Math.random()*Math.PI;
+    scene.add(d);
+  }
+}
+
+// ---- RAIN ----
+function initRain() {
+  const count = 4000;
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const velocities = [];
+
+  for (let i = 0; i < count; i++) {
+    positions[i*3]   = (Math.random()-0.5)*40;
+    positions[i*3+1] = Math.random()*20;
+    positions[i*3+2] = (Math.random()-0.5)*40;
+    velocities.push(0.08 + Math.random()*0.06);
+  }
+
+  const posAttr = new THREE.BufferAttribute(positions, 3);
+  posAttr.setUsage(THREE.DynamicDrawUsage);
+  geo.setAttribute('position', posAttr);
+  geo.userData.velocities = velocities;
+
+  const mat = new THREE.PointsMaterial({
+    color: 0x4466aa, size: 0.04, transparent: true, opacity: 0.45,
+    sizeAttenuation: true
+  });
+  rainParticles = new THREE.Points(geo, mat);
+  scene.add(rainParticles);
+}
+
+function updateRain() {
+  if (!rainParticles || !rainParticles.geometry || !rainParticles.geometry.attributes.position) return;
+  const pos = rainParticles.geometry.attributes.position.array;
+  const vel = rainParticles.geometry.userData.velocities;
+  if (!vel) return;
+  for (let i = 0; i < pos.length/3; i++) {
+    pos[i*3+1] -= vel[i];
+    pos[i*3]   -= vel[i]*0.15;
+    if (pos[i*3+1] < 0) {
+      pos[i*3+1] = 20;
+      pos[i*3]   = (Math.random()-0.5)*40;
+      pos[i*3+2] = (Math.random()-0.5)*40;
+    }
+  }
+  rainParticles.geometry.attributes.position.needsUpdate = true;
+}
+
+// ---- LIGHTNING ----
+function initLightning() {
+  scheduleLightning();
+}
+
+function scheduleLightning() {
+  if (isDead) return;
+  const delay = 3000 + Math.random()*8000;
+  setTimeout(() => {
+    triggerLightning();
+    scheduleLightning();
+  }, delay);
+}
+
+function triggerLightning() {
+  const flash = document.getElementById('lightning-flash');
+  const duration = 60 + Math.random()*120;
+  flash.style.background = 'rgba(200,220,255,0.12)';
+  setTimeout(() => flash.style.background = 'transparent', duration);
+  setTimeout(() => {
+    flash.style.background = 'rgba(200,220,255,0.08)';
+    setTimeout(() => flash.style.background = 'transparent', 80);
+  }, duration + 40);
+
+  // Thunder sound via AudioContext
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, ctx.sampleRate*1.5, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random()*2-1) * Math.exp(-i/(ctx.sampleRate*0.4)) * 0.3;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.4 + Math.random()*0.4;
+    src.connect(gain); gain.connect(ctx.destination);
+    src.start(ctx.currentTime + 0.3);
+  } catch(e){}
+
+  // TV screen flicker
+  if (scene.userData.screenMesh) {
+    scene.userData.screenMesh.material.emissiveIntensity = 3;
+    setTimeout(() => {
+      if(scene.userData.screenMesh) scene.userData.screenMesh.material.emissiveIntensity = 1;
+    }, 120);
+  }
+}
+
+// ---- CONTROLS ----
+function initControls() {
+  const canvas = document.getElementById('game-canvas');
+
+  canvas.addEventListener('mousedown', e => {
+    isDragging = false;
+    lastMouseX = e.clientX;
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    if (e.buttons === 1) {
+      const dx = e.clientX - lastMouseX;
+      cameraAngle -= dx * 0.004;
+      cameraAngle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, cameraAngle));
+      lastMouseX = e.clientX;
+      isDragging = true;
+    }
+    mouse.x = (e.clientX/window.innerWidth)*2-1;
+    mouse.y = -(e.clientY/window.innerHeight)*2+1;
+  });
+
+  canvas.addEventListener('click', e => {
+    if (isDead || monsterTriggered) return;
+    mouse.x = (e.clientX/window.innerWidth)*2-1;
+    mouse.y = -(e.clientY/window.innerHeight)*2+1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(discObjects, true);
+    if (hits.length > 0) {
+      let obj = hits[0].object;
+      while (obj && !obj.userData.isDisc) obj = obj.parent;
+      if (obj && obj.userData.isDisc) {
+        handleDiscClick(obj.userData.discIndex);
+      }
+    }
+  });
+
+  // Touch support
+  canvas.addEventListener('touchstart', e => {
+    lastMouseX = e.touches[0].clientX;
+    isDragging = false;
+  });
+  canvas.addEventListener('touchmove', e => {
+    const dx = e.touches[0].clientX - lastMouseX;
+    cameraAngle -= dx * 0.004;
+    cameraAngle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, cameraAngle));
+    lastMouseX = e.touches[0].clientX;
+    isDragging = true;
+    e.preventDefault();
+  }, {passive:false});
+}
+
+// ---- DISC CLICK ----
+function handleDiscClick(index) {
+  // Animate disc insert then show video
+  animateDiscInsert(index, () => {
+    showVideo(index);
+  });
+}
+
+function animateDiscInsert(index, callback) {
+  const anim = document.getElementById('disc-insert-anim');
+  anim.style.opacity = '1';
+  anim.style.transition = 'none';
+  anim.style.transform = 'translateY(0px)';
+
+  // DVD LED on
+  if (scene.userData.dvdLedMat) {
+    scene.userData.dvdLedMat.color.setHex(0x00cc00);
+  }
+
+  // Animate the disc moving into player
+  let progress = 0;
+  const animInterval = setInterval(() => {
+    progress += 0.05;
+    anim.style.transform = `translateY(${progress * 60}px)`;
+    anim.style.opacity = String(1 - progress);
+    if (progress >= 1) {
+      clearInterval(animInterval);
+      anim.style.opacity = '0';
+      setTimeout(callback, 200);
+    }
+  }, 16);
+}
+
+let activeVideoTexture = null;
+
+function showVideo(index) {
+  const video = document.getElementById('game-video');
+  video.src = DISC_VIDEOS[index];
+  video.load();
+
+  // Update HUD label
+  const hud = document.getElementById('hud');
+  hud.textContent = ['DİSK 1', 'DİSK 2', 'DİSK 3'][index] + ' OYNATILIYOR — BİTİNCE OTOMATİK KAPANIR';
+
+  // Create VideoTexture and apply to TV screen
+  if (activeVideoTexture) {
+    activeVideoTexture.dispose();
+    activeVideoTexture = null;
+  }
+
+  video.play().then(() => {
+    const vTex = new THREE.VideoTexture(video);
+    vTex.minFilter = THREE.LinearFilter;
+    vTex.magFilter = THREE.LinearFilter;
+    vTex.format = THREE.RGBFormat;
+    activeVideoTexture = vTex;
+
+    if (scene.userData.screenMat) {
+      scene.userData.screenMat.map = vTex;
+      scene.userData.screenMat.color.setHex(0xffffff);
+      scene.userData.screenMat.needsUpdate = true;
+    }
+
+    // Bright glow when playing
+    if (scene.userData.dvdLedMat) scene.userData.dvdLedMat.color.setHex(0x00cc00);
+  }).catch(() => {
+    // Autoplay blocked — show static idle
+  });
+
+  video.onended = () => {
+    markDiscWatched(index);
+  };
+}
+
+function closeVideo() {
+  const video = document.getElementById('game-video');
+  video.pause();
+
+  // Restore idle dark screen
+  if (scene.userData.screenMat) {
+    scene.userData.screenMat.map = null;
+    scene.userData.screenMat.color.setHex(0x050a15);
+    scene.userData.screenMat.needsUpdate = true;
+  }
+  if (activeVideoTexture) { activeVideoTexture.dispose(); activeVideoTexture = null; }
+  if (scene.userData.dvdLedMat) scene.userData.dvdLedMat.color.setHex(0x003300);
+
+  // Restore HUD
+  document.getElementById('hud').textContent = 'FARE: BAKIN \u00a0|\u00a0 DISK: TIKLA';
+
+  checkAllWatched();
+}
+
+function markDiscWatched(index) {
+  discsWatched[index] = true;
+  const ids = ['disc1-status','disc2-status','disc3-status'];
+  const el = document.getElementById(ids[index]);
+  if (el) el.style.color = '#00cc00';
+
+  // Make disc glow green on table
+  const d = discObjects[index];
+  if (d && d.children && d.children[1] && d.children[1].material) {
+    d.children[1].material.color.setHex(0x00cc00);
+    if (d.children[1].material.emissive) {
+      d.children[1].material.emissive.setHex(0x004400);
+    }
+  }
+
+  closeVideo();
+}
+
+function checkAllWatched() {
+  if (discsWatched.every(v => v) && !monsterTriggered) {
+    // All 3 discs watched - trigger monster after short delay
+    setTimeout(() => triggerMonster(), 2000);
+  }
+}
+
+// ---- MONSTER TRIGGER ----
+function triggerMonster() {
+  if (monsterTriggered) return;
+  monsterTriggered = true;
+
+  // Play scream audio
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(80, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.5);
+    osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 1.2);
+    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+    osc.start(); osc.stop(ctx.currentTime + 1.5);
+  } catch(e){}
+
+  // Force camera to look behind
+  let turnAngle = 0;
+  const turnInterval = setInterval(() => {
+    turnAngle += 0.08;
+    cameraAngle = Math.PI * turnAngle / Math.PI;
+    if (turnAngle > 3.14) {
+      clearInterval(turnInterval);
+      // Show monster
+      showMonster();
+    }
+  }, 16);
+}
+
+function showMonster() {
+  // Flash
+  const flash = document.getElementById('lightning-flash');
+  flash.style.background = 'rgba(255,255,255,0.6)';
+  setTimeout(() => flash.style.background = 'transparent', 100);
+
+  setTimeout(() => {
+    isDead = true;
+    const monsterScreen = document.getElementById('monster-screen');
+    monsterScreen.style.display = 'flex';
+
+    // Rapid red flashes
+    let count = 0;
+    const flashInterval = setInterval(() => {
+      flash.style.background = count % 2 === 0 ? 'rgba(150,0,0,0.3)' : 'transparent';
+      count++;
+      if (count > 10) clearInterval(flashInterval);
+    }, 60);
+
+    // Death screen after monster
+    setTimeout(() => {
+      monsterScreen.style.display = 'none';
+      document.getElementById('death-screen').style.display = 'flex';
+    }, 2500);
+  }, 150);
+}
+
+// ---- ANIMATE ----
+let tvFlicker = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  if (!scene || !camera || !renderer || !clock) return;
+
+  const delta = clock.getDelta();
+  const time = clock.elapsedTime;
+
+  // Camera rotation (horizontal only, player stays fixed)
+  const angle = cameraAngle;
+  camera.position.set(0, 1.55, -3.2);
+  camera.lookAt(Math.sin(angle)*20, 1.55, -3.2 - Math.cos(angle)*20);
+
+  // Rain
+  updateRain();
+
+  // TV screen flicker + VideoTexture update
+  tvFlicker += delta;
+  if (scene.userData.screenMesh && tvFlicker > 0.08) {
+    tvFlicker = 0;
+    if (activeVideoTexture) {
+      // Video playing — update texture, no flicker
+      activeVideoTexture.needsUpdate = true;
+    }
+  }
+
+  // Disc hover shimmer
+  discObjects.forEach((d, i) => {
+    if (!d || !d.children || d.children.length < 2) return;
+    d.rotation.y = time * 0.3 + i * 1.2;
+    if (!discsWatched[i] && d.children[1] && d.children[1].material) {
+      d.children[1].material.opacity = 0.6 + Math.sin(time*2+i)*0.3;
+    }
+  });
+
+  renderer.render(scene, camera);
+}
+
+</script>
+</body>
+  </html>
