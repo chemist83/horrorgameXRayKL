@@ -167,8 +167,7 @@
   <div class="intro-warning">
     Bu oyun <span>şiddetli ses efektleri</span> ve <span>ani korkutma sahneleri</span> içermektedir.<br>
     Kulaklık takmanız önerilir.<br>
-    Devam ederek bu uyarıyı kabul etmiş olursunuz.<br>
-    Produced by Alhi Dhengis Studios + Donald John Trump Jr
+    Devam ederek bu uyarıyı kabul etmiş olursunuz.
   </div>
   <button class="intro-btn" onclick="showCmd()">BAŞLA</button>
 </div>
@@ -192,6 +191,8 @@
   <div id="disc1-status">● DİSK 1</div>
   <div id="disc2-status">● DİSK 2</div>
   <div id="disc3-status">● DİSK 3</div>
+  <div id="disc4-status">● DİSK 4</div>
+  <div id="disc5-status">● DİSK 5</div>
 </div>
 
 <!-- ===== DISC INSERT ANIMATION ===== -->
@@ -239,13 +240,15 @@
 //  ★ VİDEO URL'LERİNİ BURAYA EKLE ★
 // ============================================================
 const DISC_VIDEOS = [
-  "Blank Room Soup 2 - maintenance tunnels (240p, h264, youtube).mp4",   // Disk 1 - sıradan film
-  "suicide mouse scream - anomaliti 666 666 (480p, h264, youtube).mp4",   // Disk 2
-  "lv_0_20260115212948.mp4",   // Disk 3
+  "lv_0_20260115212948.mp4",   // Disk 1
+  "Blank Room Soup 2 - maintenance tunnels (240p, h264, youtube).mp4",   // Disk 2
+  "suicide mouse scream - anomaliti 666 666 (480p, h264, youtube).mp4",   // Disk 3
+  "video4.mp4",   // Disk 4
+  "video5.mp4",   // Disk 5
 ];
 
 // CMD ekranında çıkacak yazı (isteğe göre düzenle)
-const CMD_TEXT = `> Incident Report: ABANDONED BUILDING - TIME 02:47
+const CMD_TEXT = `Incident Report: ABANDONED BUILDING - TIME 02:47
 > Location: [DELETED] - 8. STOREY ROOF
 > Date: [DELETED]
 > Country/Province: Germany, Brandenburg
@@ -294,7 +297,7 @@ function showCmd() {
     if (i < CMD_TEXT.length) {
       output.insertBefore(document.createTextNode(CMD_TEXT[i]), cursor);
       i++;
-      setTimeout(typeChar, CMD_TEXT[i-1] === '\n' ? 30 : 10);
+      setTimeout(typeChar, CMD_TEXT[i-1] === '\n' ? 60 : 22);
     } else {
       cursor.style.display = 'none';
       const btn = document.getElementById('cmd-start-btn');
@@ -309,9 +312,12 @@ function showCmd() {
 // ============================================================
 let scene, camera, renderer, raycaster, mouse;
 let discObjects = [];
-let discsWatched = [false, false, false];
+let discsWatched = [false, false, false, false, false];
 let isDead = false;
 let monsterTriggered = false;
+let doorTriggered = false;
+let doorMesh = null;
+let doorPivot = null;
 let rainParticles;
 let clock;
 let cameraAngle = 0;
@@ -361,8 +367,8 @@ function initThree() {
 
 function buildScene() {
   // ---- AMBIENT & LIGHTS ----
-  const ambient = new THREE.AmbientLight(0x080815, 0.8);
-  scene.add(ambient);
+  const ambient = new THREE.AmbientLight(0x222233, 1.5); 
+scene.add(ambient);
 
   // TV glow light
   const tvLight = new THREE.PointLight(0x334466, 2, 8);
@@ -390,6 +396,9 @@ function buildScene() {
 
   // ---- ROOFTOP WALLS / LEDGES ----
   buildLedges();
+
+  // ---- WALLS WITH WINDOWS & DOOR ----
+  buildWalls();
 
   // ---- BACKGROUND (dark sky + distant buildings) ----
   buildSkyAndCity();
@@ -425,19 +434,120 @@ function buildScene() {
 }
 
 function buildLedges() {
+  // Low parapet ledges around roof edge
   const ledgeMat = new THREE.MeshLambertMaterial({ color: 0x18181e });
-  const positions = [
-    [0, 0.3, -14, 28, 0.6, 0.4],
-    [0, 0.3,  14, 28, 0.6, 0.4],
-    [-14, 0.3, 0, 0.4, 0.6, 28],
-    [ 14, 0.3, 0, 0.4, 0.6, 28],
-  ];
-  positions.forEach(([x,y,z,w,h,d]) => {
-    const geo = new THREE.BoxGeometry(w,h,d);
-    const m = new THREE.Mesh(geo, ledgeMat);
+  [
+    [0, 0.15, -13.8, 27.6, 0.3, 0.4],
+    [0, 0.15,  13.8, 27.6, 0.3, 0.4],
+    [-13.8, 0.15, 0, 0.4, 0.3, 27.6],
+    [ 13.8, 0.15, 0, 0.4, 0.3, 27.6],
+  ].forEach(([x,y,z,w,h,d]) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), ledgeMat);
     m.position.set(x,y,z);
     scene.add(m);
   });
+}
+
+function buildWalls() {
+  const wallMat  = new THREE.MeshLambertMaterial({ color: 0x1a1820 });
+  const frameMat = new THREE.MeshLambertMaterial({ color: 0x0e0c12 });
+  const glassMat = new THREE.MeshBasicMaterial({ color: 0x0a0f18, transparent: true, opacity: 0.55 });
+
+  // ---- BACK WALL (behind TV, z = -9) ----
+  // Full wall slab
+  addBox(0, 1.5, -9, 12, 3, 0.25, wallMat);
+
+  // Two windows in back wall
+  buildWindow(-3.5, 1.6, -8.87, frameMat, glassMat);
+  buildWindow( 3.5, 1.6, -8.87, frameMat, glassMat);
+
+  // ---- LEFT WALL (x = -6) ----
+  addBox(-6, 1.5, -3, 0.25, 3, 12, wallMat);
+  buildWindowSide(-5.87, 1.6, -1, frameMat, glassMat, true);
+
+  // ---- RIGHT WALL (x = 6) ----
+  addBox(6, 1.5, -3, 0.25, 3, 12, wallMat);
+  buildWindowSide(5.87, 1.6, -1, frameMat, glassMat, false);
+
+  // ---- FRONT WALL (z = 3) with DOOR in center ----
+  // Left segment
+  addBox(-4, 1.5, 3, 4, 3, 0.25, wallMat);
+  // Right segment
+  addBox( 4, 1.5, 3, 4, 3, 0.25, wallMat);
+  // Top lintel above door
+  addBox(0, 2.7, 3, 2.2, 0.6, 0.25, wallMat);
+
+  // Door frame sides
+  addBox(-1.1, 1.35, 3, 0.12, 2.7, 0.28, frameMat);
+  addBox( 1.1, 1.35, 3, 0.12, 2.7, 0.28, frameMat);
+  // Door frame top
+  addBox(0, 2.72, 3, 2.22, 0.12, 0.28, frameMat);
+
+  // ---- DOOR ----
+  buildDoor();
+
+  // ---- CEILING strips (give enclosed feel) ----
+  addBox(0, 3.0, -3, 12, 0.08, 12, new THREE.MeshLambertMaterial({ color: 0x12101a }));
+}
+
+function addBox(x, y, z, w, h, d, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  scene.add(m);
+  return m;
+}
+
+function buildWindow(x, y, z, frameMat, glassMat) {
+  const W = 1.6, H = 1.0;
+  // Outer frame
+  addBox(x, y, z, W + 0.14, H + 0.14, 0.12, frameMat);
+  // Glass pane
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.04), glassMat);
+  glass.position.set(x, y, z + 0.07);
+  scene.add(glass);
+  // Cross bar H
+  addBox(x, y, z+0.09, W, 0.06, 0.05, frameMat);
+  // Cross bar V
+  addBox(x, y, z+0.09, 0.06, H, 0.05, frameMat);
+}
+
+function buildWindowSide(x, y, z, frameMat, glassMat, isLeft) {
+  const W = 0.12, H = 1.0, D = 1.6;
+  addBox(x, y, z, W, H + 0.14, D + 0.14, frameMat);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(0.04, H, D), glassMat);
+  glass.position.set(x + (isLeft ? 0.04 : -0.04), y, z);
+  scene.add(glass);
+  addBox(x + (isLeft ? 0.05 : -0.05), y, z, 0.05, 0.06, D, frameMat);
+  addBox(x + (isLeft ? 0.05 : -0.05), y, z, 0.05, H, 0.06, frameMat);
+}
+
+function buildDoor() {
+  // Door pivot is on the LEFT hinge edge (x = -1.0)
+  doorPivot = new THREE.Group();
+  doorPivot.position.set(-1.0, 0, 3);
+  scene.add(doorPivot);
+
+  // Door panel positioned relative to pivot (offset right by half width)
+  const doorGeo = new THREE.BoxGeometry(2.0, 2.7, 0.1);
+  const doorMat = new THREE.MeshLambertMaterial({ color: 0x1c1410 });
+  doorMesh = new THREE.Mesh(doorGeo, doorMat);
+  doorMesh.position.set(1.0, 1.35, 0); // center of door relative to hinge
+  doorPivot.add(doorMesh);
+
+  // Door panels (inset decorative panels)
+  const panelMat = new THREE.MeshLambertMaterial({ color: 0x141008 });
+  [0.6, -0.6].forEach(py => {
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.8, 0.05), panelMat);
+    panel.position.set(1.0, 1.35 + py, 0.03);
+    doorPivot.add(panel);
+  });
+
+  // Door knob
+  const knobGeo = new THREE.SphereGeometry(0.07, 8, 8);
+  const knobMat = new THREE.MeshLambertMaterial({ color: 0x8a7050 });
+  const knob = new THREE.Mesh(knobGeo, knobMat);
+  knob.position.set(1.75, 1.35, 0.1);
+  doorPivot.add(knob);
 }
 
 function buildSkyAndCity() {
@@ -571,51 +681,43 @@ function buildDVDPlayer() {
 }
 
 function buildDiscs() {
-  // Disc stand/holder on table (separate small shelf to the right)
-  const holderGeo = new THREE.BoxGeometry(0.8, 0.05, 0.6);
+  const holderGeo = new THREE.BoxGeometry(1.4, 0.05, 0.6);
   const holderMat = new THREE.MeshLambertMaterial({ color: 0x100c08 });
   const holder = new THREE.Mesh(holderGeo, holderMat);
-  holder.position.set(1.2, 0.85, -6.2);
+  holder.position.set(1.4, 0.85, -6.2);
   scene.add(holder);
 
-  const colors = [0x223344, 0x332211, 0x223322];
-  const names = ['DİSK 1', 'DİSK 2', 'DİSK 3'];
+  const colors = [0x223344, 0x332211, 0x223322, 0x332233, 0x223333];
+  const names  = ['DİSK 1','DİSK 2','DİSK 3','DİSK 4','DİSK 5'];
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     const group = new THREE.Group();
 
-    // Disc body
-    const discGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.008, 32);
+    const discGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.008, 32);
     const discMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-    const disc = new THREE.Mesh(discGeo, discMat);
-    group.add(disc);
+    group.add(new THREE.Mesh(discGeo, discMat));
 
-    // Rainbow sheen on top
-    const sheenGeo = new THREE.CylinderGeometry(0.175, 0.175, 0.002, 32);
+    const sheenGeo = new THREE.CylinderGeometry(0.155, 0.155, 0.002, 32);
     const sheenMat = new THREE.MeshBasicMaterial({ color: colors[i], transparent: true, opacity: 0.7 });
     const sheen = new THREE.Mesh(sheenGeo, sheenMat);
     sheen.position.y = 0.005;
     group.add(sheen);
 
-    // Hole
-    const holeGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.01, 16);
-    const holeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
-    const hole = new THREE.Mesh(holeGeo, holeMat);
+    const holeGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.01, 16);
+    const hole = new THREE.Mesh(holeGeo, new THREE.MeshBasicMaterial({ color: 0x222222 }));
     hole.position.y = 0.006;
     group.add(hole);
 
-    // Label
-    const labelGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.009, 32);
-    const labelMat = new THREE.MeshLambertMaterial({ color: colors[i] });
-    const label = new THREE.Mesh(labelGeo, labelMat);
+    const labelGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.009, 32);
+    const label = new THREE.Mesh(labelGeo, new THREE.MeshLambertMaterial({ color: colors[i] }));
     label.position.y = 0.004;
     group.add(label);
 
-    group.position.set(1.0 + i * 0.22, 0.89, -6.2);
+    group.position.set(0.75 + i * 0.26, 0.89, -6.2);
     group.rotation.z = Math.PI/2 + 0.15;
     group.rotation.x = 0.1;
     group.userData.discIndex = i;
-    group.userData.discName = names[i];
+    group.userData.discName  = names[i];
     group.name = 'disc_' + i;
     group.userData.isDisc = true;
 
@@ -755,11 +857,11 @@ function triggerLightning() {
     src.start(ctx.currentTime + 0.3);
   } catch(e){}
 
-  // TV screen flicker
-  if (scene.userData.screenMesh) {
-    scene.userData.screenMesh.material.emissiveIntensity = 3;
+  // TV screen flicker on lightning
+  if (scene.userData && scene.userData.screenMat && !activeVideoTexture) {
+    scene.userData.screenMat.color.setHex(0x1a2a3a);
     setTimeout(() => {
-      if(scene.userData.screenMesh) scene.userData.screenMesh.material.emissiveIntensity = 1;
+      if (scene.userData && scene.userData.screenMat) scene.userData.screenMat.color.setHex(0x050a15);
     }, 120);
   }
 }
@@ -858,7 +960,7 @@ function showVideo(index) {
 
   // Update HUD label
   const hud = document.getElementById('hud');
-  hud.textContent = ['DİSK 1', 'DİSK 2', 'DİSK 3'][index] + ' OYNATILIYOR — BİTİNCE OTOMATİK KAPANIR';
+  hud.textContent = ['DİSK 1','DİSK 2','DİSK 3','DİSK 4','DİSK 5'][index] + ' OYNATILIYOR — BİTİNCE OTOMATİK KAPANIR';
 
   // Create VideoTexture and apply to TV screen
   if (activeVideoTexture) {
@@ -911,27 +1013,96 @@ function closeVideo() {
 
 function markDiscWatched(index) {
   discsWatched[index] = true;
-  const ids = ['disc1-status','disc2-status','disc3-status'];
+  const ids = ['disc1-status','disc2-status','disc3-status','disc4-status','disc5-status'];
   const el = document.getElementById(ids[index]);
   if (el) el.style.color = '#00cc00';
 
-  // Make disc glow green on table
   const d = discObjects[index];
   if (d && d.children && d.children[1] && d.children[1].material) {
     d.children[1].material.color.setHex(0x00cc00);
-    if (d.children[1].material.emissive) {
-      d.children[1].material.emissive.setHex(0x004400);
-    }
+    if (d.children[1].material.emissive) d.children[1].material.emissive.setHex(0x004400);
   }
 
   closeVideo();
 }
 
 function checkAllWatched() {
-  if (discsWatched.every(v => v) && !monsterTriggered) {
-    // All 3 discs watched - trigger monster after short delay
-    setTimeout(() => triggerMonster(), 2000);
+  const watchedCount = discsWatched.filter(v => v).length;
+
+  // After 4th disc → door animation
+  if (watchedCount === 4 && !doorTriggered) {
+    doorTriggered = true;
+    setTimeout(() => triggerDoor(), 1000);
   }
+
+  // After all 5 discs → monster
+  if (watchedCount === 5 && !monsterTriggered) {
+    setTimeout(() => triggerMonster(), 2500);
+  }
+}
+
+// ---- DOOR BANG ANIMATION ----
+function triggerDoor() {
+  if (!doorPivot) return;
+  const hud = document.getElementById('hud');
+  hud.textContent = '...';
+
+  let bangCount = 0;
+  const totalBangs = 5;
+
+  function doBang() {
+    if (bangCount >= totalBangs) {
+      // Leave door slightly ajar at end
+      doorPivot.rotation.y = 0.08;
+      hud.textContent = 'FARE: BAKIN \u00a0|\u00a0 DISK: TIKLA';
+      return;
+    }
+    bangCount++;
+
+    // Swing open
+    let openProgress = 0;
+    const openInterval = setInterval(() => {
+      openProgress += 0.12;
+      doorPivot.rotation.y = -Math.sin(openProgress) * 1.3;
+      if (openProgress >= Math.PI) {
+        clearInterval(openInterval);
+        // Bang sound
+        playBangSound();
+        // Slam closed
+        let closeProgress = 0;
+        const closeInterval = setInterval(() => {
+          closeProgress += 0.15;
+          doorPivot.rotation.y = -Math.max(0, Math.sin(closeProgress * 0.5) * 1.3 * (1 - closeProgress / Math.PI));
+          if (closeProgress >= Math.PI) {
+            clearInterval(closeInterval);
+            doorPivot.rotation.y = 0;
+            // Brief pause between bangs
+            setTimeout(doBang, 400 + Math.random() * 300);
+          }
+        }, 16);
+      }
+    }, 16);
+  }
+
+  doBang();
+}
+
+function playBangSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      const t = i / ctx.sampleRate;
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 12) * 0.8;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const gain = ctx.createGain();
+    gain.gain.value = 1.0;
+    src.connect(gain); gain.connect(ctx.destination);
+    src.start();
+  } catch(e) {}
 }
 
 // ---- MONSTER TRIGGER ----
@@ -1035,4 +1206,4 @@ function animate() {
 
 </script>
 </body>
-  </html>
+ </html>
