@@ -294,7 +294,7 @@ function showCmd() {
     if (i < CMD_TEXT.length) {
       output.insertBefore(document.createTextNode(CMD_TEXT[i]), cursor);
       i++;
-      setTimeout(typeChar, CMD_TEXT[i-1] === '\n' ? 60 : 22);
+      setTimeout(typeChar, CMD_TEXT[i-1] === '\n' ? 30 : 10);
     } else {
       cursor.style.display = 'none';
       const btn = document.getElementById('cmd-start-btn');
