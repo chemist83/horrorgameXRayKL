@@ -341,7 +341,7 @@ function initThree() {
   clock = new THREE.Clock();
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020205);
-  scene.fog = new THREE.FogExp2(0x050510, 0.06);
+  scene.fog = new THREE.FogExp2(0x050510, 0.01);
 
   camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 200);
   camera.position.set(0, 1.55, -3.2);
