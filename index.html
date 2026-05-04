@@ -156,6 +156,9 @@
 </style>
 </head>
 <body>
+<audio id="death-audio" preload="auto">
+  <source src="audioscream.mp3" type="audio/mpeg">
+</audio>
 
 <!-- Static noise -->
 <div class="static-overlay"></div>
@@ -1406,8 +1409,10 @@ function triggerMonster() {
 }
 
 function showMonster() {
-  // Flash
+  // Flaş patlaması
   const flash = document.getElementById('lightning-flash');
+  const deathAudio = document.getElementById('death-audio'); // Ses elementi
+  
   flash.style.background = 'rgba(255,255,255,0.6)';
   setTimeout(() => flash.style.background = 'transparent', 100);
 
@@ -1416,7 +1421,14 @@ function showMonster() {
     const monsterScreen = document.getElementById('monster-screen');
     monsterScreen.style.display = 'flex';
 
-    // Rapid red flashes
+    // Ölüm sesini başlat
+    if (deathAudio) {
+      deathAudio.currentTime = 0; // Başa sar
+      deathAudio.volume = 1.0;    // Ses seviyesi full
+      deathAudio.play().catch(e => console.log("Ses oynatılamadı:", e));
+    }
+
+    // Hızlı kırmızı flaş efektleri
     let count = 0;
     const flashInterval = setInterval(() => {
       flash.style.background = count % 2 === 0 ? 'rgba(150,0,0,0.3)' : 'transparent';
@@ -1424,13 +1436,27 @@ function showMonster() {
       if (count > 10) clearInterval(flashInterval);
     }, 60);
 
-    // Death screen after monster
+    // 2.5 saniye sonra canavardan asıl "Öldün" yazısına geçiş
     setTimeout(() => {
       monsterScreen.style.display = 'none';
       document.getElementById('death-screen').style.display = 'flex';
+      
+      // İsteğe bağlı: Sesin 10 saniye sonunda yavaşça kısılması (Fade out)
+      setTimeout(() => {
+        let fadeOut = setInterval(() => {
+          if (deathAudio.volume > 0.1) {
+            deathAudio.volume -= 0.1;
+          } else {
+            deathAudio.pause();
+            clearInterval(fadeOut);
+          }
+        }, 200);
+      }, 8000); // 8. saniyede kısmaya başlar, 10. saniyede tamamen susar
+      
     }, 2500);
   }, 150);
 }
+
 
 // ---- ANIMATE ----
 let tvFlicker = 0;
