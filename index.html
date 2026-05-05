@@ -291,6 +291,14 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+// Sayfaya ilk tıklandığında müziği başlatma (Autoplay engeli için)
+window.addEventListener('click', () => {
+  const introMusic = document.getElementById('intro-ambient');
+  if (introMusic && introMusic.paused) {
+    introMusic.volume = 0.4; // Ses seviyesi %40
+    introMusic.play().catch(e => console.log("Müzik başlatılamadı:", e));
+  }
+}, { once: true }); // { once: true } sayesinde bu kod sadece 1 kere çalışır
 
 // ============================================================
 //  ★ VİDEO URL'LERİNİ BURAYA EKLE ★
@@ -341,20 +349,27 @@ const CMD_TEXT = `Incident Report: ABANDONED BUILDING - TIME 02:47
 //  CMD SCREEN
 // ============================================================
 function showCmd() {
-  // Müziği başlat
-  const introAudio = document.getElementById('intro-audio');
-  if (introAudio) {
-    introAudio.volume = 0.5; // Ses seviyesini buradan ayarlayabilirsin (0.0 - 1.0)
-    introAudio.play().catch(e => console.log("Müzik engellendi:", e));
-  }
-
   document.getElementById('intro-screen').style.display = 'none';
-  // ... (Geri kalan mevcut kodlar aynı kalacak)
   const cmdScreen = document.getElementById('cmd-screen');
   cmdScreen.style.display = 'flex';
-  // ...
-}
 
+  let i = 0;
+  const output = document.getElementById('cmd-output');
+  const cursor = document.getElementById('cmd-cursor');
+
+  function typeChar() {
+    if (i < CMD_TEXT.length) {
+      output.insertBefore(document.createTextNode(CMD_TEXT[i]), cursor);
+      i++;
+      setTimeout(typeChar, CMD_TEXT[i-1] === '\n' ? 15 : 1);
+    } else {
+      cursor.style.display = 'none';
+      const btn = document.getElementById('cmd-start-btn');
+      btn.style.display = 'block';
+    }
+  }
+  setTimeout(typeChar, 600);
+ }
 
 // ============================================================
 //  THREE.JS GAME
